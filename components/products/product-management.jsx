@@ -1,31 +1,73 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, Edit2, Trash2 } from 'lucide-react'
 import ProductForm from './product-form'
 import ProductTable from './product-table'
 import SmartProductFlow from './smart-product-flow'
 
 export default function ProductManagement() {
-  const [products, setProducts] = useState([
-    { id: 1, name: 'Laptop', barcode: '8901234567890', category: 'Electronics', price: 899.99, cost: 650, stock: 15, expiry: null },
-    { id: 2, name: 'Organic Shampoo', barcode: '8901234567891', category: 'Cosmetics', price: 15.99, cost: 8, stock: 45, expiry: '2025-12-31' },
-    { id: 3, name: 'Aspirin', barcode: '8901234567892', category: 'Medicine', price: 5.99, cost: 1.5, stock: 3, expiry: '2025-06-30' },
-  ])
-  
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showSmartFlow, setShowSmartFlow] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [editingId, setEditingId] = useState(null)
 
-  const handleAddProduct = (product) => {
-    if (editingId) {
-      setProducts(products.map(p => p.id === editingId ? { ...product, id: editingId } : p))
-      setEditingId(null)
-    } else {
-      setProducts([...products, { ...product, id: Date.now() }])
+  // Fetch products from API
+  const fetchProducts = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/products')
+      const data = await response.json()
+      if (data.success) {
+        setProducts(data.products)
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error)
+    } finally {
+      setLoading(false)
     }
-    setShowForm(false)
+  }
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const handleAddProduct = async (product) => {
+    try {
+      if (editingId) {
+        // Update existing product
+        const response = await fetch('/api/products', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...product, id: editingId })
+        })
+        const data = await response.json()
+        if (data.success) {
+          setProducts(products.map(p => p.id === editingId ? data.product : p))
+          setEditingId(null)
+        }
+      } else {
+        // Create new product
+        const response = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(product)
+        })
+        const data = await response.json()
+        if (data.success) {
+          setProducts([...products, data.product])
+        } else {
+          alert(data.error || 'Failed to add product')
+          return
+        }
+      }
+      setShowForm(false)
+    } catch (error) {
+      console.error('Error saving product:', error)
+      alert('Failed to save product')
+    }
   }
 
   const handleSmartProductAdded = (product) => {
@@ -33,8 +75,23 @@ export default function ProductManagement() {
     setShowSmartFlow(false)
   }
 
-  const handleDelete = (id) => {
-    setProducts(products.filter(p => p.id !== id))
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this product?')) return
+
+    try {
+      const response = await fetch(`/api/products?id=${id}`, {
+        method: 'DELETE'
+      })
+      const data = await response.json()
+      if (data.success) {
+        setProducts(products.filter(p => p.id !== id))
+      } else {
+        alert(data.error || 'Failed to delete product')
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      alert('Failed to delete product')
+    }
   }
 
   const handleEdit = (product) => {
@@ -107,11 +164,15 @@ export default function ProductManagement() {
           </div>
         </div>
 
-        <ProductTable
-          products={filteredProducts}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading products...</div>
+        ) : (
+          <ProductTable
+            products={filteredProducts}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
       </div>
     </div>
   )

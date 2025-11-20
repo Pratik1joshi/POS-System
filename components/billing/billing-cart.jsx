@@ -16,8 +16,8 @@ export default function BillingCart({
   onShowHeldBills
 }) {
   return (
-    <div className="pos-stat-card border-2 border-primary" style={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
-      <h3 className="text-xl font-bold mb-4 text-foreground">Current Bill</h3>
+    <div className="pos-stat-card border-2 border-primary" style={{ height: '600px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <h3 className="text-xl font-bold mb-4 text-foreground" style={{ flexShrink: 0 }}>Current Bill</h3>
 
       {/* Cart Items - FIXED HEIGHT */}
       <div 
@@ -124,22 +124,25 @@ export default function BillingCart({
               Hold Bill (Ctrl+H)
             </button>
 
-            {heldCount > 0 && (
-              <button
-                onClick={onShowHeldBills}
-                className="w-full flex items-center justify-center gap-2 border border-border py-2 rounded-lg hover:bg-muted transition-colors font-semibold text-sm"
-              >
-                <RotateCcw size={16} />
-                Resume ({heldCount}) (Ctrl+R)
-              </button>
-            )}
+            <div className="grid grid-cols-2 gap-2">
+              {heldCount > 0 && (
+                <button
+                  onClick={onShowHeldBills}
+                  className="flex items-center justify-center gap-1 border border-border py-2 rounded-lg hover:bg-muted transition-colors font-semibold text-sm"
+                >
+                  <RotateCcw size={14} />
+                  Resume ({heldCount})
+                </button>
+              )}
 
-            <button
-              onClick={onClear}
-              className="w-full text-destructive border border-destructive py-2 rounded-lg hover:bg-destructive/10 transition-colors font-semibold text-sm"
-            >
-              Clear Bill
-            </button>
+              <button
+                onClick={onClear}
+                className={`flex items-center justify-center gap-1 text-destructive border border-destructive py-2 rounded-lg hover:bg-destructive/10 transition-colors font-semibold text-sm ${heldCount === 0 ? 'col-span-2' : ''}`}
+              >
+                <Trash2 size={14} />
+                Clear Bill
+              </button>
+            </div>
           </div>
         </div>
       )}

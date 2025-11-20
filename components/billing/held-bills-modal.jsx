@@ -21,18 +21,19 @@ export default function HeldBillsModal({ bills, onResume, onClose }) {
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {bills.map(bill => {
-                const total = bill.cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+                const total = bill.total || 0
+                const itemCount = bill.item_count || 0
+                const heldAt = new Date(bill.created_at).toLocaleString()
                 return (
                   <div key={bill.id} className="pos-stat-card p-4 flex justify-between items-center">
                     <div>
-                      <div className="font-semibold">{bill.cartItems.length} items</div>
-                      <div className="text-sm text-muted-foreground">{bill.heldAt} • {bill.heldBy}</div>
+                      <div className="font-semibold">{itemCount} items</div>
+                      <div className="text-sm text-muted-foreground">{heldAt} • {bill.held_by}</div>
                       <div className="text-lg font-bold text-primary mt-1">${total.toFixed(2)}</div>
                     </div>
                     <button
                       onClick={() => {
                         onResume(bill.id)
-                        onClose()
                       }}
                       className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center gap-2"
                     >

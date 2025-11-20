@@ -4,14 +4,14 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 
 export default function ProductForm({ onSubmit, onCancel, editingProduct }) {
-  const [formData, setFormData] = useState(editingProduct || {
-    name: '',
-    barcode: '',
-    category: 'General',
-    price: '',
-    cost: '',
-    stock: '',
-    expiry: ''
+  const [formData, setFormData] = useState({
+    name: editingProduct?.name || '',
+    barcode: editingProduct?.barcode || '',
+    category: editingProduct?.category || 'General',
+    price: editingProduct?.price || '',
+    cost: editingProduct?.cost || '',
+    stock: editingProduct?.stock || '',
+    expiry: editingProduct?.expiry || ''
   })
 
   const handleSubmit = (e) => {

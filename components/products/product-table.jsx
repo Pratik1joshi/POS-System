@@ -10,8 +10,9 @@ export default function ProductTable({ products, onEdit, onDelete }) {
           <p className="text-center py-8 text-muted-foreground">No products found</p>
         ) : (
           products.map((product) => {
-            const profit = product.price - product.cost
-            const profitMargin = ((profit / product.price) * 100).toFixed(1)
+            const cost = product.cost || 0
+            const profit = product.price - cost
+            const profitMargin = product.price > 0 ? ((profit / product.price) * 100).toFixed(1) : '0.0'
             return (
               <div key={product.id} className="p-4 border border-border rounded-lg space-y-3">
                 <div className="flex justify-between items-start gap-2">
@@ -41,7 +42,7 @@ export default function ProductTable({ products, onEdit, onDelete }) {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Cost:</span>
-                    <p className="font-bold">${product.cost.toFixed(2)}</p>
+                    <p className="font-bold">${cost.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Profit:</span>
@@ -81,15 +82,16 @@ export default function ProductTable({ products, onEdit, onDelete }) {
               </tr>
             ) : (
               products.map((product) => {
-                const profit = product.price - product.cost
-                const profitMargin = ((profit / product.price) * 100).toFixed(1)
+                const cost = product.cost || 0
+                const profit = product.price - cost
+                const profitMargin = product.price > 0 ? ((profit / product.price) * 100).toFixed(1) : '0.0'
                 return (
                   <tr key={product.id} className="border-b border-border hover:bg-muted/30 transition-colors">
                     <td className="py-3 px-4 font-semibold text-foreground">{product.name}</td>
                     <td className="py-3 px-4 text-muted-foreground font-mono text-xs">{product.barcode}</td>
                     <td className="py-3 px-4">{product.category}</td>
                     <td className="py-3 px-4 text-right font-bold">${product.price.toFixed(2)}</td>
-                    <td className="py-3 px-4 text-right">${product.cost.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right">${cost.toFixed(2)}</td>
                     <td className="py-3 px-4 text-right">
                       <span className="text-green-600 dark:text-green-400 font-bold">
                         ${profit.toFixed(2)} ({profitMargin}%)

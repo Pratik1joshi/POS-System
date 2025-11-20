@@ -10,6 +10,7 @@ import HeldBillsModal from './held-bills-modal'
 
 export default function AdvancedBillingScreen() {
   const [cart, setCart] = useState([])
+  const [products, setProducts] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [showCamera, setShowCamera] = useState(false)
   const [showHeldBills, setShowHeldBills] = useState(false)
@@ -22,14 +23,35 @@ export default function AdvancedBillingScreen() {
   const searchInputRef = useRef(null)
   const audioRef = useRef(null)
 
-  // Mock database
-  const [products] = useState([
-    { id: 1, name: 'Dove Shampoo', barcode: '8901234567890', price: 230, cost: 150, stock: 25 },
-    { id: 2, name: 'Organic Shampoo', barcode: '8901234567891', price: 15.99, cost: 8, stock: 45 },
-    { id: 3, name: 'Aspirin', barcode: '8901234567892', price: 5.99, cost: 1.5, stock: 3 },
-    { id: 4, name: 'Laptop', barcode: '8901234567893', price: 899.99, cost: 650, stock: 2 },
-    { id: 5, name: 'Phone Case', barcode: '8901234567894', price: 25.50, cost: 10, stock: 50 },
-  ])
+  // Fetch products from API
+  useEffect(() => {
+    fetchProducts()
+    fetchHeldBills()
+  }, [])
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/products')
+      const data = await response.json()
+      if (data.success) {
+        setProducts(data.products)
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error)
+    }
+  }
+
+  const fetchHeldBills = async () => {
+    try {
+      const response = await fetch('/api/held-bills')
+      const data = await response.json()
+      if (data.success) {
+        setHeldBills(data.bills)
+      }
+    } catch (error) {
+      console.error('Error fetching held bills:', error)
+    }
+  }
 
   // Play success beep
   const playBeep = () => {
@@ -178,62 +200,136 @@ export default function AdvancedBillingScreen() {
   }
 
   // Hold current bill
-  const holdBill = () => {
+  const holdBill = async () => {
     if (cart.length === 0) {
       setError('Cart is empty')
       return
     }
 
-    const heldBill = {
-      id: Date.now(),
-      cartItems: [...cart],
-      heldAt: new Date().toLocaleString(),
-      heldBy: 'Current User'
+    try {
+      const response = await fetch('/api/held-bills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            barcode: item.barcode,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          held_by: 'Cashier'
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setSuccessMessage('Bill held successfully')
+        setTimeout(() => setSuccessMessage(null), 2000)
+        setCart([])
+        fetchHeldBills()
+      } else {
+        setError(data.error || 'Failed to hold bill')
+        setTimeout(() => setError(null), 3000)
+      }
+    } catch (error) {
+      console.error('Error holding bill:', error)
+      setError('Failed to hold bill')
+      setTimeout(() => setError(null), 3000)
     }
-    setHeldBills([...heldBills, heldBill])
-    setSuccessMessage('Bill held successfully')
-    setTimeout(() => setSuccessMessage(null), 2000)
-    setCart([])
   }
 
   // Resume held bill
-  const resumeBill = (billId) => {
-    const bill = heldBills.find(b => b.id === billId)
-    if (bill) {
-      setCart(bill.cartItems)
-      setHeldBills(heldBills.filter(b => b.id !== billId))
-      setSuccessMessage('Bill resumed')
-      setTimeout(() => setSuccessMessage(null), 2000)
+  const resumeBill = async (billId) => {
+    try {
+      const response = await fetch(`/api/held-bills?id=${billId}`)
+      const data = await response.json()
+      
+      if (data.success && data.bill) {
+        const bill = data.bill
+        const cartItems = bill.items.map(item => ({
+          id: item.product_id,
+          name: item.product_name,
+          barcode: item.product_barcode,
+          price: item.price,
+          quantity: item.quantity,
+          stock: products.find(p => p.id === item.product_id)?.stock || 0
+        }))
+        
+        setCart(cartItems)
+        
+        // Delete the held bill
+        await fetch(`/api/held-bills?id=${billId}`, { method: 'DELETE' })
+        
+        setSuccessMessage('Bill resumed')
+        setTimeout(() => setSuccessMessage(null), 2000)
+        setShowHeldBills(false)
+        fetchHeldBills()
+      }
+    } catch (error) {
+      console.error('Error resuming bill:', error)
+      setError('Failed to resume bill')
+      setTimeout(() => setError(null), 3000)
     }
   }
 
   // Complete sale and update stock
-  const completeSale = (paymentInfo) => {
+  const completeSale = async (paymentInfo) => {
     if (cart.length === 0) {
       setError('Cart is empty')
       return
     }
 
-    // Update stock atomically
-    cart.forEach(item => {
-      // In a real app, this would update SQLite via API
-      console.log(`[v0] Updating stock: ${item.name} - ${item.quantity} units deducted`)
-    })
+    try {
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            barcode: item.barcode,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          payment_method: paymentInfo.method,
+          amount_paid: paymentInfo.cashReceived,
+          discount: paymentInfo.discount,
+          tax: cartVAT
+        })
+      })
 
-    setPaymentData({
-      items: cart,
-      paymentMethod: paymentInfo.method,
-      cashReceived: paymentInfo.cashReceived,
-      subtotal: cartSubtotal,
-      discount: paymentInfo.discount,
-      vat: cartVAT,
-      total: cartTotal,
-      scannedSources: cart.map(item => item.scanned_source)
-    })
+      const data = await response.json()
+      
+      if (data.success) {
+        setPaymentData({
+          items: cart,
+          paymentMethod: paymentInfo.method,
+          cashReceived: paymentInfo.cashReceived,
+          subtotal: cartSubtotal,
+          discount: paymentInfo.discount,
+          vat: cartVAT,
+          total: cartTotal,
+          transactionNumber: data.transaction.transaction_number,
+          scannedSources: cart.map(item => item.scanned_source)
+        })
 
-    setSuccessMessage('Sale completed successfully')
-    setTimeout(() => setSuccessMessage(null), 2000)
-    setCart([])
+        setSuccessMessage(`Sale completed! Transaction #${data.transaction.transaction_number}`)
+        setTimeout(() => setSuccessMessage(null), 2000)
+        setCart([])
+        
+        // Refresh products to update stock
+        fetchProducts()
+      } else {
+        setError(data.error || 'Failed to complete sale')
+        setTimeout(() => setError(null), 3000)
+      }
+    } catch (error) {
+      console.error('Error completing sale:', error)
+      setError('Failed to complete sale')
+      setTimeout(() => setError(null), 3000)
+    }
   }
 
   // Keyboard shortcuts
@@ -269,8 +365,17 @@ export default function AdvancedBillingScreen() {
     <div className="p-3 sm:p-4 lg:p-6 bg-background min-h-screen space-y-3 sm:space-y-4">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">Billing</h2>
-        <div className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
-          <div>Ctrl+1: Search | Ctrl+H: Hold | Ctrl+R: Resume</div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHeldBills(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-semibold text-sm"
+          >
+            <Play size={16} />
+            <span>Held Bills {heldBills.length > 0 && `(${heldBills.length})`}</span>
+          </button>
+          <div className="text-xs sm:text-sm text-muted-foreground hidden lg:block">
+            <div>Ctrl+1: Search | Ctrl+H: Hold | Ctrl+R: Resume</div>
+          </div>
         </div>
       </div>
 

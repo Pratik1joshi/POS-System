@@ -17,19 +17,39 @@ export default function ApiProductFlow({ apiProduct, barcode, onSave, onManual, 
     supplier: ''
   })
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!formData.costPrice || !formData.sellingPrice || !formData.stock) {
-      alert('Please fill Cost Price, Selling Price, and Stock Quantity')
+    if (!formData.sellingPrice || !formData.stock) {
+      alert('Please fill Selling Price and Stock Quantity')
       return
     }
-    onSave({
-      ...formData,
-      id: Date.now(),
-      cost: parseFloat(formData.costPrice),
-      price: parseFloat(formData.sellingPrice),
-      stock: parseInt(formData.stock)
-    })
+
+    try {
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          barcode: formData.barcode,
+          category: formData.category,
+          price: parseFloat(formData.sellingPrice),
+          stock: parseInt(formData.stock),
+          unit: 'pcs',
+          min_stock: 10
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        onSave(data.product)
+      } else {
+        alert(data.error || 'Failed to add product')
+      }
+    } catch (error) {
+      console.error('Error adding product:', error)
+      alert('Failed to add product')
+    }
   }
 
   return (

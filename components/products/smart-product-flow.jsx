@@ -8,13 +8,14 @@ import ApiProductFlow from './api-product-flow'
 import ManualAddFlow from './manual-add-flow'
 
 export default function SmartProductFlow({ products, onProductAdded, onCancel }) {
-  const [step, setStep] = useState('input') // input, checking, exists, api-found, manual
+  const [step, setStep] = useState('input') // input, checking, exists, api-found, manual, scanning
   const [barcode, setBarcode] = useState('')
   const [loading, setLoading] = useState(false)
   const [foundProduct, setFoundProduct] = useState(null)
   const [apiProduct, setApiProduct] = useState(null)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('') // 'info', 'success', 'error'
+  const [showScanner, setShowScanner] = useState(false)
   const barcodeInputRef = useRef(null)
 
   // Case A: Check if product exists in local DB
@@ -28,17 +29,28 @@ export default function SmartProductFlow({ products, onProductAdded, onCancel })
     setLoading(true)
     setStep('checking')
 
-    // Simulate local DB check
-    await new Promise(r => setTimeout(r, 500))
-    
-    const existingProduct = products.find(p => p.barcode === barcode)
-    
-    if (existingProduct) {
-      // Case A: Product exists
-      setFoundProduct(existingProduct)
-      setStep('exists')
-    } else {
-      // Try API lookup
+    try {
+      // Check local database via API
+      const response = await fetch(`/api/products?search=${barcode}`)
+      const data = await response.json()
+      
+      if (data.success && data.products.length > 0) {
+        const existingProduct = data.products.find(p => p.barcode === barcode)
+        
+        if (existingProduct) {
+          // Case A: Product exists in local database
+          setFoundProduct(existingProduct)
+          setStep('exists')
+          setLoading(false)
+          return
+        }
+      }
+      
+      // Product not in local DB, try external APIs
+      await lookupProductInAPIs(barcode)
+    } catch (error) {
+      console.error('Error checking local database:', error)
+      // If local check fails, try external APIs anyway
       await lookupProductInAPIs(barcode)
     }
     
@@ -148,6 +160,7 @@ export default function SmartProductFlow({ products, onProductAdded, onCancel })
                   </button>
                   <button
                     type="button"
+                    onClick={() => setShowScanner(true)}
                     className="px-4 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors"
                   >
                     <Camera size={20} />
@@ -196,6 +209,21 @@ export default function SmartProductFlow({ products, onProductAdded, onCancel })
           )}
         </div>
       </div>
+
+      {/* Barcode Scanner Modal */}
+      {showScanner && (
+        <BarcodeScanner
+          onDetect={(scannedBarcode) => {
+            setBarcode(scannedBarcode)
+            setShowScanner(false)
+            // Auto-submit after scan
+            setTimeout(() => {
+              handleBarcodeSubmit({ preventDefault: () => {} })
+            }, 100)
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   )
 }

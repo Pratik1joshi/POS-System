@@ -5,6 +5,7 @@ import { Search, Plus, Minus, Trash2, Printer } from 'lucide-react'
 
 export default function BillingScreen() {
   const [billItems, setBillItems] = useState([])
+  const [products, setProducts] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredProducts, setFilteredProducts] = useState([])
   const [showSearchResults, setShowSearchResults] = useState(false)
@@ -12,12 +13,25 @@ export default function BillingScreen() {
   const [discountType, setDiscountType] = useState('amount')
   const [vat] = useState(15)
   const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [processing, setProcessing] = useState(false)
 
-  const products = [
-    { id: 1, name: 'Laptop', price: 899.99, barcode: '8901234567890', stock: 10 },
-    { id: 2, name: 'Shampoo', price: 15.99, barcode: '8901234567891', stock: 25 },
-    { id: 3, name: 'Aspirin', price: 5.99, barcode: '8901234567892', stock: 5 },
-  ]
+  // Fetch products from API
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/products')
+      const data = await response.json()
+      if (data.success) {
+        setProducts(data.products)
+        setFilteredProducts(data.products.slice(0, 6))
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error)
+    }
+  }
 
   // Handle search input changes
   const handleSearchChange = (value) => {
@@ -31,15 +45,10 @@ export default function BillingScreen() {
       setFilteredProducts(filtered)
       setShowSearchResults(true)
     } else {
-      setFilteredProducts(products.slice(0, 6)) // Show first 6 products by default
+      setFilteredProducts(products.slice(0, 6))
       setShowSearchResults(false)
     }
   }
-
-  // Initialize with some products shown
-  useEffect(() => {
-    setFilteredProducts(products.slice(0, 6))
-  }, [])
 
   // Select product from search results
   const selectProductFromSearch = (product) => {
@@ -78,6 +87,50 @@ export default function BillingScreen() {
   const taxableAmount = subtotal - discountAmount
   const vatAmount = (taxableAmount * vat) / 100
   const total = taxableAmount + vatAmount
+
+  const handleCompleteSale = async () => {
+    if (billItems.length === 0) return
+
+    try {
+      setProcessing(true)
+      
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: billItems.map(item => ({
+            id: item.id,
+            name: item.name,
+            barcode: item.barcode,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          payment_method: paymentMethod,
+          amount_paid: total,
+          discount: discountAmount,
+          tax: vatAmount
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        alert(`Sale completed! Transaction #${data.transaction.transaction_number}`)
+        setBillItems([])
+        setDiscount(0)
+        setSearchTerm('')
+        // Refresh products to update stock
+        fetchProducts()
+      } else {
+        alert(data.error || 'Failed to complete sale')
+      }
+    } catch (error) {
+      console.error('Error completing sale:', error)
+      alert('Failed to complete sale')
+    } finally {
+      setProcessing(false)
+    }
+  }
 
   return (
     <div className="p-8">
@@ -266,8 +319,12 @@ export default function BillingScreen() {
                     <option value="check">Check</option>
                   </select>
 
-                  <button className="w-full bg-green-600 dark:bg-green-700 text-white py-3 rounded-lg font-bold hover:bg-green-700 dark:hover:bg-green-800 transition-colors">
-                    Complete Sale
+                  <button 
+                    onClick={handleCompleteSale}
+                    disabled={processing}
+                    className="w-full bg-green-600 dark:bg-green-700 text-white py-3 rounded-lg font-bold hover:bg-green-700 dark:hover:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processing ? 'Processing...' : 'Complete Sale'}
                   </button>
 
                   <button className="w-full flex items-center justify-center gap-2 border border-border py-2 rounded-lg hover:bg-muted transition-colors font-semibold">
