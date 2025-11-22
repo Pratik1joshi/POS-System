@@ -29,7 +29,7 @@ export default function HeldBillsModal({ bills, onResume, onClose }) {
                     <div>
                       <div className="font-semibold">{itemCount} items</div>
                       <div className="text-sm text-muted-foreground">{heldAt} • {bill.held_by}</div>
-                      <div className="text-lg font-bold text-primary mt-1">${total.toFixed(2)}</div>
+                      <div className="text-lg font-bold text-primary mt-1">Rs {total.toFixed(2)}</div>
                     </div>
                     <button
                       onClick={() => {

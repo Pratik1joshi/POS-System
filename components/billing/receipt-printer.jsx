@@ -53,11 +53,11 @@ export default function ReceiptPrinter({ data, onClose }) {
                   <div className="flex-1">
                     <div>{item.name}</div>
                     <div className="text-gray-600 dark:text-gray-400">
-                      {item.quantity} × ${item.price.toFixed(2)}
+                      {item.quantity} × Rs {item.price.toFixed(2)}
                     </div>
                   </div>
                   <div className="text-right font-bold">
-                    ${(item.quantity * item.price).toFixed(2)}
+                    Rs {(item.quantity * item.price).toFixed(2)}
                   </div>
                 </div>
               ))}
@@ -67,23 +67,23 @@ export default function ReceiptPrinter({ data, onClose }) {
             <div className="border-t-2 border-b-2 border-gray-400 py-2 text-xs mb-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span className="font-bold">${data.subtotal.toFixed(2)}</span>
+                <span className="font-bold">Rs {data.subtotal.toFixed(2)}</span>
               </div>
               {data.discount > 0 && (
                 <div className="flex justify-between">
                   <span>Discount:</span>
-                  <span className="font-bold">-${data.discount.toFixed(2)}</span>
+                  <span className="font-bold">-Rs {data.discount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>VAT (13%):</span>
-                <span className="font-bold">${data.vat.toFixed(2)}</span>
+                <span className="font-bold">Rs {data.vat.toFixed(2)}</span>
               </div>
             </div>
 
             {/* Grand Total */}
             <div className="text-sm font-bold mb-2">
-              TOTAL: ${data.total.toFixed(2)}
+              TOTAL: Rs {data.total.toFixed(2)}
             </div>
 
             {/* Payment Info */}
@@ -91,11 +91,11 @@ export default function ReceiptPrinter({ data, onClose }) {
               <div className="border-t border-gray-400 pt-2 text-xs mb-2">
                 <div className="flex justify-between">
                   <span>Cash Received:</span>
-                  <span className="font-bold">${data.cashReceived.toFixed(2)}</span>
+                  <span className="font-bold">Rs {data.cashReceived.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Change:</span>
-                  <span className="font-bold">${data.cashReceived - data.total.toFixed(2)}</span>
+                  <span className="font-bold">Rs {(data.cashReceived - data.total).toFixed(2)}</span>
                 </div>
               </div>
             )}
@@ -103,7 +103,6 @@ export default function ReceiptPrinter({ data, onClose }) {
             {/* Footer */}
             <div className="border-t border-gray-400 pt-2 text-xs text-gray-600 dark:text-gray-400">
               <div>Thank you!</div>
-              <div>Scan sources: {data.scannedSources.join(', ')}</div>
             </div>
           </div>
         </div>

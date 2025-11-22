@@ -1,25 +1,106 @@
 'use client'
 
-import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Menu, X, Store } from 'lucide-react'
 import Dashboard from '@/components/dashboard'
 import Sidebar from '@/components/sidebar'
 import ProductManagement from '@/components/products/product-management'
 import InventoryManagement from '@/components/inventory/inventory-management'
 import AdvancedBillingScreen from '@/components/billing/advanced-billing-screen'
 import ReportsPage from '@/components/reports/reports-page'
-import UserManagement from '@/components/users/user-management'
+import CustomerManagement from '@/components/customers/customer-management'
 import Settings from '@/components/settings/settings'
+import '@/lib/fetch-interceptor' // Automatically adds shop_id to API requests
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [user] = useState({ name: 'Admin', role: 'Manager' })
+  
+  // Shop authentication
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [shopInfo, setShopInfo] = useState(null)
+
+  // Apply theme on load
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'system'
+    
+    // Remove existing theme classes
+    document.documentElement.classList.remove('light', 'dark')
+    
+    if (savedTheme === 'system') {
+      // Use system preference
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      if (systemPrefersDark) {
+        document.documentElement.classList.add('dark')
+      }
+    } else {
+      // Apply saved theme
+      document.documentElement.classList.add(savedTheme)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Check if already logged in
+    const shopToken = localStorage.getItem('shopToken')
+    const savedShopInfo = localStorage.getItem('shopInfo')
+    if (shopToken && savedShopInfo) {
+      const info = JSON.parse(savedShopInfo)
+      setIsAuthenticated(true)
+      setShopInfo(info)
+    }
+  }, [])
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/shop/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        localStorage.setItem('shopToken', 'authenticated')
+        localStorage.setItem('shopInfo', JSON.stringify(data.shop))
+        setShopInfo(data.shop)
+        setIsAuthenticated(true)
+        
+        if (data.message) {
+          setTimeout(() => alert(data.message), 500)
+        }
+      } else {
+        setError(data.error || 'Invalid credentials')
+      }
+    } catch (error) {
+      setError('Login failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('shopToken')
+    localStorage.removeItem('shopInfo')
+    setIsAuthenticated(false)
+    setShopInfo(null)
+    setUsername('')
+    setPassword('')
+    setCurrentPage('dashboard')
+  }
 
   const renderPage = () => {
     switch(currentPage) {
       case 'dashboard':
-        return <Dashboard />
+        return <Dashboard onNavigate={setCurrentPage} />
       case 'products':
         return <ProductManagement />
       case 'inventory':
@@ -28,13 +109,88 @@ export default function Home() {
         return <AdvancedBillingScreen />
       case 'reports':
         return <ReportsPage />
-      case 'users':
-        return <UserManagement />
+      case 'customers':
+        return <CustomerManagement />
       case 'settings':
         return <Settings />
       default:
-        return <Dashboard />
+        return <Dashboard onNavigate={setCurrentPage} />
     }
+  }
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-secondary/10 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-background rounded-2xl shadow-2xl border border-border overflow-hidden">
+            <div className="bg-primary text-primary-foreground p-8 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="bg-primary-foreground/20 p-4 rounded-full">
+                  <Store size={48} />
+                </div>
+              </div>
+              <h1 className="text-2xl font-bold">Shop Login</h1>
+              <p className="text-sm opacity-90 mt-2">Nepal POS System</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="p-8 space-y-6">
+              {error && (
+                <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold mb-2">Shop Username</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-border rounded-lg bg-input focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter your shop username"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-border rounded-lg bg-input focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Enter your password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Logging in...' : 'Login to POS System'}
+              </button>
+
+              <div className="text-center text-xs text-muted-foreground">
+                <p>Contact your administrator for login credentials</p>
+              </div>
+            </form>
+          </div>
+
+          <div className="mt-6 text-center">
+            <a
+              href="/admin"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Admin Login →
+            </a>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -53,10 +209,12 @@ export default function Home() {
       >
         <Sidebar
           currentPage={currentPage}
-          setCurrentPage={(page) => {
+          onNavigate={(page) => {
             setCurrentPage(page)
             setSidebarOpen(false)
           }}
+          shopInfo={shopInfo}
+          onLogout={handleLogout}
         />
       </div>
 
@@ -72,10 +230,16 @@ export default function Home() {
             <h1 className="text-lg sm:text-xl lg:text-2xl font-bold truncate">POS System</h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <span className="text-xs sm:text-sm opacity-90 hidden sm:inline">{user.name} • {user.role}</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center font-bold text-sm sm:text-base">
-              {user.name[0]}
-            </div>
+            {shopInfo && shopInfo.name && (
+              <>
+                <span className="text-xs sm:text-sm opacity-90 hidden sm:inline">
+                  {shopInfo.name} • {shopInfo.owner_name}
+                </span>
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center font-bold text-sm sm:text-base">
+                  {shopInfo.name[0].toUpperCase()}
+                </div>
+              </>
+            )}
           </div>
         </header>
         <div className="flex-1 overflow-auto">

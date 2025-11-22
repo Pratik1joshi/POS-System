@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Search, Plus, Minus, Trash2, Printer, Camera, Bold as Hold, Play, X, AlertTriangle, Volume2 } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, Printer, Camera, Bold as Hold, Play, X, AlertTriangle, Volume2, User, Phone } from 'lucide-react'
 import BarcodeScanner from './barcode-scanner'
 import BillingCart from './billing-cart'
 import PaymentPanel from './payment-panel'
@@ -22,6 +22,14 @@ export default function AdvancedBillingScreen() {
   const [showSearchResults, setShowSearchResults] = useState(false)
   const searchInputRef = useRef(null)
   const audioRef = useRef(null)
+  
+  // Customer selection
+  const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const [showCustomerForm, setShowCustomerForm] = useState(false)
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [customerAge, setCustomerAge] = useState('')
+  const [customerAddress, setCustomerAddress] = useState('')
 
   // Fetch products from API
   useEffect(() => {
@@ -61,7 +69,7 @@ export default function AdvancedBillingScreen() {
   }
 
   // Format number to currency
-  const formatCurrency = (num) => `$${num.toFixed(2)}`
+  const formatCurrency = (num) => `Rs ${num.toFixed(2)}`
 
   // Handle search input changes
   const handleSearchChange = (value) => {
@@ -274,6 +282,59 @@ export default function AdvancedBillingScreen() {
     }
   }
 
+  // Customer management functions
+  const searchCustomerByPhone = async (phone) => {
+    try {
+      const response = await fetch(`/api/customers?phone=${phone}`)
+      const data = await response.json()
+      if (data.success && data.customers.length > 0) {
+        setSelectedCustomer(data.customers[0])
+        setShowCustomerForm(false)
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Error searching customer:', error)
+      return false
+    }
+  }
+
+  const createCustomer = async () => {
+    if (!customerPhone || !customerName) {
+      setError('Phone and name are required')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: customerPhone,
+          name: customerName,
+          age: customerAge || null,
+          address: customerAddress || null
+        })
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setSelectedCustomer(data.customer)
+        setShowCustomerForm(false)
+        setCustomerPhone('')
+        setCustomerName('')
+        setCustomerAge('')
+        setCustomerAddress('')
+        setSuccessMessage('Customer added successfully')
+        setTimeout(() => setSuccessMessage(null), 2000)
+      } else {
+        setError(data.error)
+      }
+    } catch (error) {
+      setError('Error creating customer')
+    }
+  }
+
   // Complete sale and update stock
   const completeSale = async (paymentInfo) => {
     if (cart.length === 0) {
@@ -282,10 +343,27 @@ export default function AdvancedBillingScreen() {
     }
 
     try {
+      // Calculate amount paid based on payment method
+      let amountPaid = 0
+      const creditAmount = paymentInfo.creditAmount || 0
+      
+      if (paymentInfo.method === 'cash') {
+        amountPaid = paymentInfo.cashReceived
+      } else if (paymentInfo.method === 'mixed') {
+        amountPaid = (paymentInfo.mixedCash || 0) + (paymentInfo.mixedOnline || 0)
+      } else if (paymentInfo.method === 'credit') {
+        // For credit transactions, use the calculated amountPaid from payment panel
+        amountPaid = paymentInfo.amountPaid
+      } else {
+        // For card, online, or other methods, amount paid equals total
+        amountPaid = cartTotal
+      }
+
       const response = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          customer_id: selectedCustomer?.id || null,
           items: cart.map(item => ({
             id: item.id,
             name: item.name,
@@ -293,10 +371,11 @@ export default function AdvancedBillingScreen() {
             price: item.price,
             quantity: item.quantity
           })),
-          payment_method: paymentInfo.method,
-          amount_paid: paymentInfo.cashReceived,
+          payment_method: paymentInfo.method === 'credit' ? paymentInfo.creditPaymentMethod : paymentInfo.method,
+          amount_paid: amountPaid,
           discount: paymentInfo.discount,
-          tax: cartVAT
+          tax: cartVAT,
+          credit_amount: creditAmount
         })
       })
 
@@ -315,9 +394,15 @@ export default function AdvancedBillingScreen() {
           scannedSources: cart.map(item => item.scanned_source)
         })
 
-        setSuccessMessage(`Sale completed! Transaction #${data.transaction.transaction_number}`)
-        setTimeout(() => setSuccessMessage(null), 2000)
+        const customerInfo = selectedCustomer ? ` for ${selectedCustomer.name}` : ' (Guest)'
+        const creditInfo = creditAmount > 0 ? ` | Credit: Rs ${creditAmount.toFixed(2)}` : ''
+        setSuccessMessage(`Sale completed! Transaction #${data.transaction.transaction_number}${customerInfo}${creditInfo}`)
+        setTimeout(() => setSuccessMessage(null), 3000)
         setCart([])
+        
+        // Clear customer selection after sale
+        setSelectedCustomer(null)
+        setCustomerPhone('')
         
         // Refresh products to update stock
         fetchProducts()
@@ -519,11 +604,68 @@ export default function AdvancedBillingScreen() {
           />
 
           {cart.length > 0 && (
-            <PaymentPanel
-              total={cartTotal}
-              onComplete={completeSale}
-              onPrint={() => {}}
-            />
+            <>
+              {/* Customer Selection - Below Cart */}
+              <div className="pos-stat-card p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <User size={16} />
+                    Customer {!selectedCustomer && <span className="text-xs text-muted-foreground font-normal">(Optional - Guest if empty)</span>}
+                  </h3>
+                  {selectedCustomer && (
+                    <button
+                      onClick={() => setSelectedCustomer(null)}
+                      className="text-xs text-destructive hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                {selectedCustomer ? (
+                  <div className="bg-primary/10 p-2 rounded">
+                    <p className="font-bold text-sm">{selectedCustomer.name}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Phone size={12} />
+                      {selectedCustomer.phone}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="tel"
+                      placeholder="Phone number"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      onKeyPress={async (e) => {
+                        if (e.key === 'Enter' && customerPhone) {
+                          const found = await searchCustomerByPhone(customerPhone)
+                          if (!found) setShowCustomerForm(true)
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-border rounded text-sm bg-input"
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!customerPhone) return
+                        const found = await searchCustomerByPhone(customerPhone)
+                        if (!found) setShowCustomerForm(true)
+                      }}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm font-semibold hover:bg-primary/90 whitespace-nowrap"
+                    >
+                      Find / Add
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <PaymentPanel
+                total={cartTotal}
+                onComplete={completeSale}
+                onPrint={() => {}}
+                selectedCustomer={selectedCustomer}
+              />
+            </>
           )}
         </div>
       </div>
@@ -542,6 +684,100 @@ export default function AdvancedBillingScreen() {
           data={paymentData}
           onClose={() => setPaymentData(null)}
         />
+      )}
+
+      {/* Customer Form Modal */}
+      {showCustomerForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-lg shadow-2xl w-full max-w-md">
+            <div className="bg-primary text-primary-foreground p-4 flex justify-between items-center rounded-t-lg">
+              <h3 className="text-lg font-semibold">New Customer</h3>
+              <button 
+                onClick={() => {
+                  setShowCustomerForm(false)
+                  setCustomerPhone('')
+                  setCustomerName('')
+                  setCustomerAge('')
+                  setCustomerAddress('')
+                }}
+                className="hover:bg-primary-foreground/20 p-1 rounded text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-2">Phone Number *</label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="w-full px-4 py-2 border border-border rounded-lg bg-input"
+                  placeholder="98XXXXXXXX"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2">Full Name *</label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full px-4 py-2 border border-border rounded-lg bg-input"
+                  placeholder="Customer name"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Age</label>
+                  <input
+                    type="number"
+                    value={customerAge}
+                    onChange={(e) => setCustomerAge(e.target.value)}
+                    className="w-full px-4 py-2 border border-border rounded-lg bg-input"
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Address</label>
+                  <input
+                    type="text"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    className="w-full px-4 py-2 border border-border rounded-lg bg-input"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={createCustomer}
+                  className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90"
+                >
+                  Save Customer
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCustomerForm(false)
+                    setCustomerPhone('')
+                    setCustomerName('')
+                    setCustomerAge('')
+                    setCustomerAddress('')
+                  }}
+                  className="px-6 border border-border py-3 rounded-lg font-semibold hover:bg-muted"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Hidden audio element for beep */}

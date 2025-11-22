@@ -38,15 +38,15 @@ export default function ProductTable({ products, onEdit, onDelete }) {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-muted-foreground">Price:</span>
-                    <p className="font-bold">${product.price.toFixed(2)}</p>
+                    <p className="font-bold">Rs {product.price.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Cost:</span>
-                    <p className="font-bold">${cost.toFixed(2)}</p>
+                    <p className="font-bold">Rs {cost.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Profit:</span>
-                    <p className="font-bold text-green-600">${profit.toFixed(2)}</p>
+                    <p className="font-bold text-green-600">Rs {profit.toFixed(2)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Stock:</span>
@@ -90,11 +90,11 @@ export default function ProductTable({ products, onEdit, onDelete }) {
                     <td className="py-3 px-4 font-semibold text-foreground">{product.name}</td>
                     <td className="py-3 px-4 text-muted-foreground font-mono text-xs">{product.barcode}</td>
                     <td className="py-3 px-4">{product.category}</td>
-                    <td className="py-3 px-4 text-right font-bold">${product.price.toFixed(2)}</td>
-                    <td className="py-3 px-4 text-right">${cost.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right font-bold">Rs {product.price.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right">Rs {cost.toFixed(2)}</td>
                     <td className="py-3 px-4 text-right">
                       <span className="text-green-600 dark:text-green-400 font-bold">
-                        ${profit.toFixed(2)} ({profitMargin}%)
+                        Rs {profit.toFixed(2)} ({profitMargin}%)
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">

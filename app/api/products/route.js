@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import db from '@/lib/db'
+import { getShopDbFromRequest } from '@/lib/get-shop-db'
 
 // GET - List all products or search
 export async function GET(request) {
   try {
+    const db = getShopDbFromRequest(request)
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
     const category = searchParams.get('category')
@@ -39,6 +40,7 @@ export async function GET(request) {
 // POST - Create new product
 export async function POST(request) {
   try {
+    const db = getShopDbFromRequest(request)
     const body = await request.json()
     const { name, barcode, category, price, stock, unit, min_stock } = body
 
@@ -89,6 +91,7 @@ export async function POST(request) {
 // PUT - Update product
 export async function PUT(request) {
   try {
+    const db = getShopDbFromRequest(request)
     const body = await request.json()
     const { id, name, barcode, category, price, stock, unit, min_stock } = body
 
@@ -168,6 +171,7 @@ export async function PUT(request) {
 // DELETE - Delete product
 export async function DELETE(request) {
   try {
+    const db = getShopDbFromRequest(request)
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -178,7 +182,7 @@ export async function DELETE(request) {
       )
     }
 
-    const stmt = db.prepare('DELETE FROM products WHERE id = ?')
+    db.prepare('DELETE FROM products WHERE id = ?').run(id)
     const result = stmt.run(id)
 
     if (result.changes === 0) {

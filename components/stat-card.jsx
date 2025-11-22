@@ -10,8 +10,8 @@ export default function StatCard({ title, value, change, trend, icon, onClick })
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-xs sm:text-sm text-muted-foreground font-medium mb-1 sm:mb-2 truncate">{title}</p>
-          <h3 className="text-base sm:text-lg md:text-2xl font-bold text-foreground mb-2 sm:mb-3 line-clamp-1 break-words">{value}</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground font-medium mb-1 truncate">{title}</p>
+          <h3 className="text-sm sm:text-base md:text-lg font-bold text-foreground mb-1 sm:mb-2 break-words leading-tight">{value}</h3>
           <div className={`flex items-center gap-1 text-xs sm:text-sm font-semibold ${
             trend === 'up' ? 'text-green-600 dark:text-green-400' : 
             trend === 'down' ? 'text-red-600 dark:text-red-400' : 

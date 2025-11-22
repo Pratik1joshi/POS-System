@@ -33,11 +33,11 @@ export default function ProductExistsFlow({ product, onUpdateStock, onEdit, onCa
           </div>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Price</p>
-            <p className="font-semibold">${product.price.toFixed(2)}</p>
+            <p className="font-semibold">Rs {product.price.toFixed(2)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Cost</p>
-            <p className="font-semibold">${product.cost.toFixed(2)}</p>
+            <p className="font-semibold">Rs {product.cost.toFixed(2)}</p>
           </div>
         </div>
       </div>

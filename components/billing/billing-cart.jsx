@@ -89,7 +89,7 @@ export default function BillingCart({
 
               {/* Total */}
               <div className="text-right text-sm font-bold border-t border-border pt-1">
-                ${(item.price * item.quantity).toFixed(2)}
+                Rs {(item.price * item.quantity).toFixed(2)}
               </div>
             </div>
           ))
@@ -102,15 +102,15 @@ export default function BillingCart({
           <div className="space-y-2 text-sm border-t border-border pt-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal:</span>
-              <span className="font-bold">${subtotal.toFixed(2)}</span>
+              <span className="font-bold">Rs {subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">VAT (13%):</span>
-              <span className="font-bold">${vat.toFixed(2)}</span>
+              <span className="font-bold">Rs {vat.toFixed(2)}</span>
             </div>
             <div className="border-t border-border pt-2 flex justify-between text-lg font-bold text-primary">
               <span>Total:</span>
-              <span>${total.toFixed(2)}</span>
+              <span>Rs {total.toFixed(2)}</span>
             </div>
           </div>
 

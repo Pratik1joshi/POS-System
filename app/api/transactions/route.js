@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
-import db from '@/lib/db'
+import { getShopDbFromRequest } from '@/lib/get-shop-db'
 
 // GET - List all transactions or get specific transaction
 export async function GET(request) {
   try {
+    const db = getShopDbFromRequest(request)
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const customer_id = searchParams.get('customer_id')
     const limit = searchParams.get('limit') || 50
 
     if (id) {
@@ -25,12 +27,28 @@ export async function GET(request) {
       return NextResponse.json({ success: true, transaction })
     }
 
-    // Get all transactions (recent first)
-    const transactions = db.prepare(`
-      SELECT * FROM transactions 
-      ORDER BY created_at DESC 
-      LIMIT ?
-    `).all(parseInt(limit))
+    // Get transactions filtered by customer or all
+    let transactions
+    if (customer_id) {
+      transactions = db.prepare(`
+        SELECT * FROM transactions 
+        WHERE customer_id = ?
+        ORDER BY created_at DESC 
+        LIMIT ?
+      `).all(parseInt(customer_id), parseInt(limit))
+    } else {
+      transactions = db.prepare(`
+        SELECT * FROM transactions 
+        ORDER BY created_at DESC 
+        LIMIT ?
+      `).all(parseInt(limit))
+    }
+
+    // Fetch items for each transaction
+    const itemsStmt = db.prepare('SELECT * FROM transaction_items WHERE transaction_id = ?')
+    transactions.forEach(transaction => {
+      transaction.items = itemsStmt.all(transaction.id)
+    })
 
     return NextResponse.json({ success: true, transactions })
   } catch (error) {
@@ -45,8 +63,9 @@ export async function GET(request) {
 // POST - Create new transaction
 export async function POST(request) {
   try {
+    const db = getShopDbFromRequest(request)
     const body = await request.json()
-    const { items, payment_method, amount_paid, discount = 0, tax = 0 } = body
+    const { customer_id, items, payment_method, amount_paid, discount = 0, tax = 0, credit_amount = 0 } = body
 
     if (!items || items.length === 0) {
       return NextResponse.json(
@@ -55,9 +74,19 @@ export async function POST(request) {
       )
     }
 
-    if (!payment_method || !amount_paid) {
+    if (!payment_method || amount_paid === undefined) {
       return NextResponse.json(
         { success: false, error: 'Payment method and amount are required' },
+        { status: 400 }
+      )
+    }
+
+    const creditAmount = parseFloat(credit_amount) || 0
+
+    // Validate credit transaction requires customer
+    if (creditAmount > 0 && !customer_id) {
+      return NextResponse.json(
+        { success: false, error: 'Customer ID required for credit transactions' },
         { status: 400 }
       )
     }
@@ -78,28 +107,43 @@ export async function POST(request) {
     const transactionNumber = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
 
     // Start transaction
-    const insertTransaction = db.transaction((items) => {
+    const insertTransaction = db.transaction((items, customerId, creditAmt) => {
       // Insert transaction
       const txnStmt = db.prepare(`
         INSERT INTO transactions (
-          transaction_number, total, discount, tax, final_total, 
-          payment_method, amount_paid, change_amount
+          transaction_number, customer_id, total, discount, tax, final_total, 
+          payment_method, amount_paid, change_amount, credit_amount
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       const result = txnStmt.run(
         transactionNumber,
+        customerId || null,
         subtotal,
         discountAmount,
         taxAmount,
         total,
         payment_method,
         paid,
-        change
+        change,
+        creditAmt
       )
 
       const transactionId = result.lastInsertRowid
+
+      // Update customer stats if customer_id provided
+      if (customerId) {
+        db.prepare(`
+          UPDATE customers 
+          SET total_purchases = total_purchases + 1,
+              total_spent = total_spent + ?,
+              credit_balance = credit_balance + ?,
+              last_purchase_at = CURRENT_TIMESTAMP,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(total, creditAmt, customerId)
+      }
 
       // Insert transaction items and update stock
       const itemStmt = db.prepare(`
@@ -157,7 +201,7 @@ export async function POST(request) {
       return transactionId
     })
 
-    const transactionId = insertTransaction(items)
+    const transactionId = insertTransaction(items, customer_id, creditAmount)
 
     // Fetch complete transaction
     const transaction = db.prepare('SELECT * FROM transactions WHERE id = ?').get(transactionId)

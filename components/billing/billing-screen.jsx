@@ -171,7 +171,7 @@ export default function BillingScreen() {
                     className="w-full text-left px-4 py-3 hover:bg-muted border-b border-border last:border-b-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="font-bold text-foreground">{product.name}</div>
-                    <div className="text-sm text-primary font-bold">${product.price}</div>
+                    <div className="text-sm text-primary font-bold">Rs {product.price}</div>
                     <div className="text-xs text-muted-foreground">
                       Stock: {product.stock || 'N/A'} | Barcode: {product.barcode}
                     </div>
@@ -200,7 +200,7 @@ export default function BillingScreen() {
                   className="p-4 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="font-bold text-foreground">{product.name}</div>
-                  <div className="text-sm text-primary font-bold">${product.price}</div>
+                  <div className="text-sm text-primary font-bold">Rs {product.price}</div>
                   <div className="text-xs text-muted-foreground">Stock: {product.stock || 'N/A'}</div>
                 </button>
               ))}
@@ -235,7 +235,7 @@ export default function BillingScreen() {
                       </button>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div className="text-xs text-muted-foreground">${item.price}</div>
+                      <div className="text-xs text-muted-foreground">Rs {item.price}</div>
                       <div className="flex gap-1 items-center">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -257,7 +257,7 @@ export default function BillingScreen() {
                         </button>
                       </div>
                     </div>
-                    <div className="mt-1 text-right text-sm font-bold">${(item.price * item.quantity).toFixed(2)}</div>
+                    <div className="mt-1 text-right text-sm font-bold">Rs {(item.price * item.quantity).toFixed(2)}</div>
                   </div>
                 ))
               )}
@@ -269,7 +269,7 @@ export default function BillingScreen() {
                 <div className="space-y-2 text-sm border-t border-border pt-3">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-bold">${subtotal.toFixed(2)}</span>
+                    <span className="font-bold">Rs {subtotal.toFixed(2)}</span>
                   </div>
 
                   <div className="space-y-2">
@@ -286,24 +286,24 @@ export default function BillingScreen() {
                         onChange={(e) => setDiscountType(e.target.value)}
                         className="px-2 py-1 border border-border rounded bg-input text-sm"
                       >
-                        <option value="amount">$</option>
+                        <option value="amount">Rs</option>
                         <option value="percent">%</option>
                       </select>
                     </div>
                     <div className="flex justify-between text-muted-foreground text-xs">
                       <span>Discount:</span>
-                      <span>${discountAmount.toFixed(2)}</span>
+                      <span>Rs {discountAmount.toFixed(2)}</span>
                     </div>
                   </div>
 
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">VAT ({vat}%):</span>
-                    <span>${vatAmount.toFixed(2)}</span>
+                    <span>Rs {vatAmount.toFixed(2)}</span>
                   </div>
 
                   <div className="border-t border-border pt-2 flex justify-between text-lg font-bold text-primary">
                     <span>Total:</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>Rs {total.toFixed(2)}</span>
                   </div>
                 </div>
 

@@ -30,7 +30,19 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              const theme = localStorage.getItem('posTheme') || 'system';
+              if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+              }
+            })();
+          `
+        }} />
+      </head>
       <body className={`font-sans antialiased`}>
         {children}
         <Analytics />

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import db from '@/lib/db'
+import { getShopDbFromRequest } from '@/lib/get-shop-db'
 
 // GET - List all held bills
 export async function GET(request) {
   try {
+    const db = getShopDbFromRequest(request)
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -117,6 +118,7 @@ export async function POST(request) {
 // DELETE - Delete held bill
 export async function DELETE(request) {
   try {
+    const db = getShopDbFromRequest(request)
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
